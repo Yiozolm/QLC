@@ -5,19 +5,19 @@ from compressai.models import SimpleVAECompressionModel
 from compressai.models.utils import conv, deconv
 from compressai.entropy_models import EntropyBottleneck
 from compressai.latent_codecs import (
+    CheckerboardLatentCodec,
+    GaussianConditionalLatentCodec,
     HyperLatentCodec,
     HyperpriorLatentCodec,
 )
-
-from compressai.entropy_models import GaussianMixtureConditional
 
 from compressai.layers import (
     CheckerboardMaskedConv2d,
     GDN,
 )
 from compressai.ops import quantize_ste
-from .GaussianMixture import GaussianMixtureConditionalLatentCodec
-from .Checkerboard import Checkerboard
+# from .GaussianMixture import GaussianMixtureConditionalLatentCodec
+# from .Checkerboard import Checkerboard
 
 class qlc(SimpleVAECompressionModel):
     def __init__(self, N=192, M=192, **kwargs):
@@ -76,19 +76,19 @@ class qlc(SimpleVAECompressionModel):
 
         self.latent_codec = HyperpriorLatentCodec(
             latent_codec={
-                "y": Checkerboard(
+                "y": CheckerboardLatentCodec(
                     latent_codec={
-                        "y": GaussianMixtureConditionalLatentCodec(gaussian_conditional=GaussianMixtureConditional, quantizer="ste"),
+                        "y": GaussianConditionalLatentCodec(quantizer="ste"),
                     },
                     entropy_parameters=nn.Sequential(
                         nn.Conv2d(M * 3, 640, 1),
                         nn.LeakyReLU(inplace=True),
                         nn.Conv2d(640, 640, 1),
                         nn.LeakyReLU(inplace=True),
-                        nn.Conv2d(640, 9 * M, 1),
+                        nn.Conv2d(640, 2 * M, 1),
                     ),
                     context_prediction=CheckerboardMaskedConv2d(
-                        M, 3 * M, kernel_size=5, stride=1, padding=2
+                        M, 2 * M, kernel_size=5, stride=1, padding=2
                     ),
                 ),
                 "hyper": HyperLatentCodec(
@@ -113,7 +113,7 @@ class qlc(SimpleVAECompressionModel):
         c_hat = quantize_ste(c)
         residual_hat =  torch.sigmoid(self.e_s(c_hat)) - 0.5
 
-        y_out["residual_likelihoods"]["c"] = c_likelihoods
+        y_out["likelihoods"]["c"] = c_likelihoods
         x_hat = self.g_s(y_hat+residual_hat)
 
         return {
