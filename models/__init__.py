@@ -7,6 +7,7 @@ from compressai.models import (
     Cheng2020Attention,
 )
 
+from .QLC import qlc
 
 image_models = {
     "factorized": FactorizedPrior,
@@ -20,3 +21,4 @@ image_models = {
 
 models = {}
 models.update(image_models)
+models['qlc'] = qlc
